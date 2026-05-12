@@ -183,7 +183,7 @@ def _download_pdf(url: str) -> bytes | None:
     try:
         resp = requests.get(url, headers=BROWSER_HEADERS, timeout=HTTP_TIMEOUT)
         if resp.status_code == 404:
-            print(f"[download] 404 — URL has rotated")
+            print("[download] 404 — URL has rotated")
             return None
         resp.raise_for_status()
     except requests.RequestException as exc:
