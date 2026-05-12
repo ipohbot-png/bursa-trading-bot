@@ -103,6 +103,10 @@ def send_telegram(message: str) -> None:
         pass  # never let a notification failure crash the scanner
 
 
+HEARTBEAT_FILE = Path(__file__).parent / ".last_heartbeat.json"
+HEARTBEAT_DAYS = 3  # Send a "still alive" ping every N days when no setups found
+
+
 def save_alert_state(message: str) -> None:
     """Persist the last alert so the retry script can check for a reply."""
     import json, datetime
@@ -111,6 +115,29 @@ def save_alert_state(message: str) -> None:
         "message": message,
     }
     ALERT_STATE_FILE.write_text(json.dumps(state, indent=2))
+
+
+def maybe_send_heartbeat() -> None:
+    """Send a 'scanner is alive' Telegram ping every HEARTBEAT_DAYS days."""
+    import json
+    from datetime import datetime, timedelta
+
+    now = datetime.now()
+    if HEARTBEAT_FILE.exists():
+        try:
+            data = json.loads(HEARTBEAT_FILE.read_text())
+            last = datetime.fromisoformat(data.get("last_sent", "2000-01-01"))
+            if now - last < timedelta(days=HEARTBEAT_DAYS):
+                return  # not due yet
+        except Exception:
+            pass
+
+    send_telegram(
+        f"✅ Bursa Scanner check-in ({now.strftime('%d %b %Y')})\n"
+        f"No setups found today. Scanner is running normally.\n"
+        f"Next check-in in {HEARTBEAT_DAYS} days (or sooner if setups appear)."
+    )
+    HEARTBEAT_FILE.write_text(json.dumps({"last_sent": now.isoformat()}))
 
 
 # ---------------------------------------------------------------------------
@@ -492,6 +519,7 @@ def main() -> None:
     print_top_table(opps, TOP_N)
 
     if not opps:
+        maybe_send_heartbeat()
         return
 
     # Build a compact Telegram summary for the top setups
