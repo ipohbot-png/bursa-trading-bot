@@ -45,6 +45,7 @@ from __future__ import annotations
 import csv
 import math
 import time
+import urllib.parse
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -79,6 +80,37 @@ ATR_PERIOD = 14
 
 # Path to the authoritative CSV (shipped beside the script)
 LISTINGS_CSV = Path(__file__).parent / "bursa_listings.csv"
+
+# ---------------------------------------------------------------------------
+# TELEGRAM NOTIFICATIONS
+# ---------------------------------------------------------------------------
+
+TELEGRAM_BOT_TOKEN = "8200748506:AAEksgSmlgYn-BPCI6-hok3mbzkFo43go2Q"
+TELEGRAM_CHAT_ID   = "8671734227"
+
+
+ALERT_STATE_FILE = Path(__file__).parent / ".last_alert.json"
+
+
+def send_telegram(message: str) -> None:
+    """Send a message to the configured Telegram chat. Silently skips on error."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message}, timeout=10)
+    except Exception:
+        pass  # never let a notification failure crash the scanner
+
+
+def save_alert_state(message: str) -> None:
+    """Persist the last alert so the retry script can check for a reply."""
+    import json, datetime
+    state = {
+        "sent_at": datetime.datetime.now().isoformat(),
+        "message": message,
+    }
+    ALERT_STATE_FILE.write_text(json.dumps(state, indent=2))
 
 
 # ---------------------------------------------------------------------------
@@ -458,6 +490,26 @@ def main() -> None:
     tickers = discover_bursa_tickers()
     opps = scan_universe(tickers)
     print_top_table(opps, TOP_N)
+
+    if not opps:
+        return
+
+    # Build a compact Telegram summary for the top setups
+    ranked = sorted(opps, key=lambda o: o.expected_profit_rm, reverse=True)[:TOP_N]
+    lines = [f"🔍 Bursa Scanner — {len(opps)} setup(s) found today\n"]
+    for i, o in enumerate(ranked, 1):
+        lines.append(
+            f"{i}. {o.ticker}  RM{o.price:.3f}  "
+            f"RSI {o.rsi:.0f}  "
+            f"Dist {o.distance_pct:+.1f}%  "
+            f"Net profit RM{o.expected_profit_rm:,.0f}  "
+            f"RRR {o.rrr:.2f}"
+        )
+    lines.append(f"\nCapital per trade: RM{CAPITAL_PER_TRADE_RM:,.0f}")
+    lines.append("\nReply 'ok' to acknowledge — otherwise I'll remind you in 2 hours.")
+    alert_msg = "\n".join(lines)
+    send_telegram(alert_msg)
+    save_alert_state(alert_msg)
 
 
 if __name__ == "__main__":
