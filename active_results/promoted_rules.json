@@ -1,0 +1,20 @@
+[
+  {
+    "spec_id": "rsi2_pullback_sma50_lt25_gt75_time15_stop5",
+    "family": "swing_rsi_pullback",
+    "timeframe": "swing",
+    "description": "Enter long when close > SMA(50) (uptrend filter) and RSI(2) < 25; exit when RSI(2) > 75, after 15 trading days, or a 5% stop-loss from entry -- whichever comes first.",
+    "stop_kind": "fixed_pct",
+    "stop_param": 5.0,
+    "time_stop_days": 15
+  },
+  {
+    "spec_id": "rsi2_pullback_sma50_lt25_gt75_time10_stop5",
+    "family": "swing_rsi_pullback",
+    "timeframe": "swing",
+    "description": "Enter long when close > SMA(50) (uptrend filter) and RSI(2) < 25; exit when RSI(2) > 75, after 10 trading days, or a 5% stop-loss from entry -- whichever comes first.",
+    "stop_kind": "fixed_pct",
+    "stop_param": 5.0,
+    "time_stop_days": 10
+  }
+]

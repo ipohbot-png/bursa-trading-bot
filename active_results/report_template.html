@@ -1,0 +1,335 @@
+<title>TMK &amp; Powerwell — Swing Rule Backtest</title>
+<style>
+:root{
+  --bg:#F7F8F6; --surface:#FFFFFF; --ink:#20281F; --muted:#5F6B5F; --line:#DDE3DC;
+  --strat:#0B8A74; --bh:#B26718; --good:#2E7D46; --bad:#B3402E;
+  --chip:#EEF2ED; --accent-soft:#E3EFEA;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#131917; --surface:#1B231F; --ink:#E6ECE7; --muted:#95A297; --line:#2C3630;
+  --strat:#2FA98F; --bh:#C5833A; --good:#57B876; --bad:#D9705C;
+  --chip:#222B26; --accent-soft:#1E2E28;
+}}
+:root[data-theme="dark"]{
+  --bg:#131917; --surface:#1B231F; --ink:#E6ECE7; --muted:#95A297; --line:#2C3630;
+  --strat:#2FA98F; --bh:#C5833A; --good:#57B876; --bad:#D9705C;
+  --chip:#222B26; --accent-soft:#1E2E28;
+}
+:root[data-theme="light"]{
+  --bg:#F7F8F6; --surface:#FFFFFF; --ink:#20281F; --muted:#5F6B5F; --line:#DDE3DC;
+  --strat:#0B8A74; --bh:#B26718; --good:#2E7D46; --bad:#B3402E;
+  --chip:#EEF2ED; --accent-soft:#E3EFEA;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.6 "Segoe UI","Helvetica Neue",Arial,sans-serif;}
+.wrap{max-width:880px;margin:0 auto;padding:48px 24px 80px;}
+h1,h2,h3{font-family:"Palatino Linotype","Book Antiqua",Georgia,serif;
+  line-height:1.2;text-wrap:balance;margin:0;}
+h1{font-size:2.1rem;font-weight:600;}
+h2{font-size:1.4rem;font-weight:600;margin-top:56px;margin-bottom:14px;}
+h3{font-size:1.05rem;font-weight:600;margin-top:24px;margin-bottom:8px;}
+p{margin:10px 0;max-width:68ch;}
+.eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.sub{color:var(--muted);max-width:70ch;}
+.mono,.num,td.num,th.num{font-family:"Cascadia Mono",Consolas,"Courier New",monospace;
+  font-variant-numeric:tabular-nums;}
+.rulecard{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:26px 28px;margin-top:28px;}
+.rulecard .cond{display:flex;flex-wrap:wrap;gap:24px;margin-top:16px;}
+.rulecard .cond>div{flex:1 1 240px;}
+.rulecard .label{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.rulecard ul{margin:8px 0 0;padding-left:18px;}
+.rulecard li{margin:4px 0;}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:22px;}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
+.tile .v{font-size:1.5rem;font-weight:600;font-family:"Cascadia Mono",Consolas,monospace;
+  font-variant-numeric:tabular-nums;}
+.tile .k{font-size:.75rem;color:var(--muted);margin-top:2px;line-height:1.35;}
+.chartbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:18px 18px 8px;margin-top:20px;position:relative;}
+.chartbox h3{margin-top:0;}
+.legend{display:flex;gap:18px;font-size:.8rem;color:var(--muted);margin:6px 0 4px;flex-wrap:wrap;}
+.legend .sw{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px;}
+svg{display:block;width:100%;height:auto;}
+.tooltip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);
+  border-radius:6px;padding:7px 10px;font-size:.76rem;line-height:1.45;box-shadow:0 4px 14px rgba(0,0,0,.12);
+  opacity:0;transition:opacity .12s;white-space:nowrap;z-index:5;}
+@media (prefers-reduced-motion: reduce){.tooltip{transition:none}}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-top:16px;}
+table{border-collapse:collapse;width:100%;font-size:.83rem;}
+th{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;
+  text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;}
+td{padding:8px 14px;border-bottom:1px solid var(--line);white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+td.num,th.num{text-align:right;}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.hl td{background:var(--accent-soft);}
+.note{background:var(--chip);border-radius:8px;padding:14px 18px;font-size:.86rem;color:var(--muted);margin-top:14px;}
+.note strong{color:var(--ink);}
+details{margin-top:14px;}
+summary{cursor:pointer;font-weight:600;font-size:.9rem;}
+summary:focus-visible{outline:2px solid var(--strat);outline-offset:2px;border-radius:4px;}
+.caveats li{margin:8px 0;max-width:70ch;}
+footer{margin-top:64px;padding-top:20px;border-top:1px solid var(--line);font-size:.8rem;color:var(--muted);}
+.pill{display:inline-block;background:var(--chip);border-radius:999px;padding:2px 10px;
+  font-size:.72rem;letter-spacing:.05em;margin-right:6px;}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Backtest report · Bursa Malaysia · generated 2026-07-26</div>
+  <h1>A dip-buying swing rule for TMK &amp; Powerwell</h1>
+  <p class="sub">116 technical rule combinations across 8 indicator families were tested on
+  Powerwell (0217, ACE) in-sample 2020–2023, then confirmed out-of-sample 2024–now and on
+  TMK Chemical's (5330, Main) full listed history — every trade filled at next-day open,
+  board-lot sized at RM&nbsp;20,000, and netted through the full Maybank fee schedule.
+  Two near-identical rules survived. This page shows them, their exact entry/exit
+  conditions, and what they honestly do and don't deliver.</p>
+
+  <div class="rulecard">
+    <div class="label">The promoted rule — RSI(2) pullback in an uptrend</div>
+    <div class="cond">
+      <div>
+        <div class="label" style="color:var(--strat)">Enter long when (both true at close)</div>
+        <ul>
+          <li>Close is <strong>above the 50-day SMA</strong> (uptrend intact)</li>
+          <li><strong>RSI(2) drops below 25</strong> (sharp short-term dip)</li>
+        </ul>
+        <p style="font-size:.82rem;color:var(--muted)">Buy at the <strong>next session's open</strong>.</p>
+      </div>
+      <div>
+        <div class="label" style="color:var(--bh)">Exit at next open when (first to occur)</div>
+        <ul>
+          <li><strong>RSI(2) rises above 75</strong> (dip has bounced), or</li>
+          <li><strong>15 trading days</strong> elapse (10-day variant equally valid), or</li>
+          <li>Close falls <strong>5% below your entry price</strong> (stop-loss)</li>
+        </ul>
+      </div>
+    </div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:0">
+    Typical hold 4–6 sessions · in the market only ~14–18% of the time ·
+    signals fire ~9×/year on Powerwell, ~7×/year on TMK.</p>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="v pos">+1.0%</div><div class="k">avg profit per trade after fees, out-of-sample (both stocks)</div></div>
+    <div class="tile"><div class="v">64–68%</div><div class="k">of trades profitable out-of-sample</div></div>
+    <div class="tile"><div class="v">1.5–1.7</div><div class="k">profit factor out-of-sample (RM won per RM lost)</div></div>
+    <div class="tile"><div class="v">~⅓</div><div class="k">of buy-and-hold's drawdown (20% vs 35% PWL · 10% vs 48% TMK)</div></div>
+  </div>
+
+  <div class="note"><strong>Read this before trading it.</strong> In the 2024–2026 rally this rule made
+  +28% on Powerwell while simply holding made +285%. Its value is <strong>not</strong> beating a strong
+  uptrend — it can't, it's only invested ~15% of the time. Its value is disciplined, mechanical
+  entries with a hard stop, small drawdowns, and cash in hand ~85% of the time. If you believe the
+  uptrend continues, holding beats this rule; if you want rule-based dip entries with controlled
+  risk, this is the only pattern out of 116 that survived testing honestly.</div>
+
+  <h2>Strategy vs buy-and-hold, RM-for-RM</h2>
+  <p class="sub">Both lines start at 100 = RM 20,000. Dots mark actual entries
+  (hover any dot or the curve for details). The strategy line is flat most of the
+  time — that is the point: it only steps in on qualifying dips.</p>
+  <div class="chartbox" id="chart-0217"></div>
+  <div class="chartbox" id="chart-5330"></div>
+
+  <h2>Scorecard — the promoted rule, window by window</h2>
+  <div class="tablewrap"><table id="scorecard"></table></div>
+  <div class="note">The 15-day and 10-day time-stop variants are statistically inseparable —
+  both promoted, use either. A sibling with an 8% stop instead of 5% did <em>better</em>
+  out-of-sample (+40.6% PWL, PF 1.8) but lost money in-sample, so by protocol it was not
+  promoted — a useful reminder of how noisy these edges are. Nothing here compounds above
+  the RM 20k budget; no margin is ever simulated.</div>
+
+  <h2>What else was tested (and failed)</h2>
+  <p class="sub">Full in-sample ranking on Powerwell 2020–2023. Of 116 rules, 70 produced
+  fewer than 8 trades (excluded), and only the two highlighted rows made money after fees.
+  Moving-average crossovers, MACD, Donchian breakouts, Bollinger and volume-breakout
+  systems all lost to fees and whipsaw on these stocks at swing frequency.</p>
+  <div class="tablewrap"><table id="top15"></table></div>
+
+  <h2>Robustness — six control stocks</h2>
+  <p class="sub">The same rule, unchanged, on six comparable KLSE mid/small caps.
+  Profitable on 4 of 6 — enough to say the pattern isn't a TMK/Powerwell fluke,
+  not enough to call it universal. It loses on the two ACE solar names whose dips
+  tended to keep falling.</p>
+  <div class="tablewrap"><table id="controls"></table></div>
+
+  <h2>Every trade, listed</h2>
+  <details><summary>Powerwell 0217.KL — 54 trades (2020–2026)</summary>
+    <div class="tablewrap"><table id="trades-0217"></table></div></details>
+  <details><summary>TMK 5330.KL — 11 trades (2025–2026)</summary>
+    <div class="tablewrap"><table id="trades-5330"></table></div></details>
+
+  <h2>How the result was validated</h2>
+  <ul class="caveats">
+    <li><span class="pill">protocol</span>Parameters tuned only on Powerwell 2020–2023; 2024+ and all of TMK held out. One shared rule set — no per-stock tuning.</li>
+    <li><span class="pill">execution</span>Signals at close, fills at next session's open; orders carry past zero-volume bars; positions sized to board lots within available cash — no margin, no same-bar fills, no intraday stops (daily data can't model them; the 5% stop triggers on close, exits next open, so real slippage past −5% is possible).</li>
+    <li><span class="pill">fees</span>Every leg charged the full Maybank 2026 schedule (0.10% brokerage min RM8 + SST, 0.03% clearing, RM1.50/RM1000 stamp). A RM 20k round trip costs ≈ RM 115 (0.58%).</li>
+    <li><span class="pill">verification</span>Three independent passes: the engine's 15-test suite; an adversarial code review that caught and fixed a margin-sizing bug (which had been overstating returns ~12 points — results here are post-fix); and an independent re-derivation of all 131 promoted-rule trades from raw prices, which matched exactly.</li>
+  </ul>
+
+  <h2>Honest limitations</h2>
+  <ul class="caveats">
+    <li><strong>TMK has only ~19 months of trading history</strong> (listed Dec 2024) — 11 trades is thin evidence. Treat TMK results as "consistent with", not "proof of".</li>
+    <li><strong>The edge is modest</strong>: ~+1% per trade on ~9 trades a year is roughly +9%/yr while invested only ~15% of the time. On RM 20k that's ~RM 1,800/yr before slippage.</li>
+    <li><strong>Data is yfinance daily bars</strong> — good enough for research, not broker-grade. Spreads on these names (2–3 sen on a ~RM 0.80 stock) can eat a meaningful slice of a 1% edge; use limit orders.</li>
+    <li><strong>Past ≠ future.</strong> Both stocks are in strong uptrends; the rule's uptrend filter means it stops trading entirely if price falls below the 50-day SMA — by design.</li>
+  </ul>
+
+  <h2>Using it day-to-day</h2>
+  <p>The repo now includes <span class="mono">active_scanner.py</span>: run it daily after market
+  close (or schedule it) and it checks both stocks against these exact rules, sends a Telegram
+  alert on any new entry/exit/stop signal, and logs every event. It is signal-only — it never
+  places orders.</p>
+
+  <footer>Backtest window: Powerwell 2020-01-22 → 2026-07-24 · TMK 2024-12-12 → 2026-07-24 ·
+  RM 20,000 per position · Maybank retail fees · Generated by the bursa_active research
+  pipeline (bursa_active/, active_results/).<br><br>
+  This is an informational backtest report, not investment advice and not a recommendation
+  to buy or sell any security. The author is a software tool, not a licensed financial
+  advisor. Trade at your own risk.</footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v,d=1) => (v>=0?"+":"") + v.toFixed(d) + "%";
+const cls = v => v>=0 ? "pos" : "neg";
+
+function chart(el, ticker, title, isOosDate){
+  const s = DATA.series[ticker];
+  const W=900, H=380, m={t:24,r:110,b:34,l:16};
+  const n = s.dates.length;
+  const all = s.strategy.concat(s.buyhold);
+  const ymin = Math.min(...all)*0.97, ymax = Math.max(...all)*1.03;
+  const X = i => m.l + (W-m.l-m.r) * i/(n-1);
+  const Y = v => m.t + (H-m.t-m.b) * (1 - (v-ymin)/(ymax-ymin));
+  const dates = s.dates.map(d => new Date(d));
+  const path = a => a.map((v,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)).join("");
+
+  // year ticks
+  let ticks = [];
+  for(let i=1;i<n;i++) if(dates[i].getFullYear()!==dates[i-1].getFullYear()) ticks.push(i);
+  // horizontal grid: 4 lines at round values
+  let grid = []; const span=ymax-ymin, step=span/4;
+  for(let g=1;g<4;g++) grid.push(ymin+g*step);
+
+  let sv = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title} equity curve">`;
+  grid.forEach(v => { sv += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/>
+    <text x="${W-m.r+8}" y="${Y(v)+4}" font-size="11" fill="var(--muted)" class="num">${fmt(v-100,0)}</text>`;});
+  ticks.forEach(i => sv += `<text x="${X(i)}" y="${H-10}" font-size="11" fill="var(--muted)" text-anchor="middle">${dates[i].getFullYear()}</text>`);
+  if(isOosDate){
+    const oi = s.dates.findIndex(d => d >= isOosDate);
+    if(oi>0){ sv += `<line x1="${X(oi)}" x2="${X(oi)}" y1="${m.t}" y2="${H-m.b}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 4" opacity=".55"/>
+      <text x="${X(oi)-6}" y="${m.t+12}" font-size="10.5" fill="var(--muted)" text-anchor="end">in-sample</text>
+      <text x="${X(oi)+6}" y="${m.t+12}" font-size="10.5" fill="var(--muted)">out-of-sample</text>`; }
+  }
+  sv += `<path d="${path(s.buyhold)}" fill="none" stroke="var(--bh)" stroke-width="2"/>`;
+  sv += `<path d="${path(s.strategy)}" fill="none" stroke="var(--strat)" stroke-width="2.25"/>`;
+  sv += `<text x="${W-m.r+8}" y="${Y(s.buyhold[n-1])+4}" font-size="11.5" fill="var(--bh)" font-weight="600">hold ${fmt(s.buyhold[n-1]-100,0)}</text>`;
+  sv += `<text x="${W-m.r+8}" y="${Y(s.strategy[n-1])+4}" font-size="11.5" fill="var(--strat)" font-weight="600">rule ${fmt(s.strategy[n-1]-100,0)}</text>`;
+
+  // trade dots on strategy curve
+  const di = {}; s.dates.forEach((d,i)=>di[d]=i);
+  const nearest = d => { let lo=0; for(let i=0;i<n;i++){ if(s.dates[i]<=d) lo=i; else break; } return lo; };
+  s.trades.forEach((t,k) => {
+    const i = nearest(t.entry_date);
+    sv += `<circle data-trade="${k}" cx="${X(i)}" cy="${Y(s.strategy[i])}" r="4"
+      fill="var(--${t.return_pct>=0?'good':'bad'})" stroke="var(--surface)" stroke-width="1.8" style="cursor:pointer"/>`;
+  });
+  sv += `<rect id="ov" x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent"/>`;
+  sv += `<line id="xh" y1="${m.t}" y2="${H-m.b}" stroke="var(--muted)" stroke-width="1" opacity="0"/></svg>`;
+
+  el.insertAdjacentHTML("beforeend",
+    `<h3>${title}</h3>
+     <div class="legend"><span><span class="sw" style="background:var(--strat)"></span>This rule (after fees)</span>
+     <span><span class="sw" style="background:var(--bh)"></span>Buy &amp; hold</span>
+     <span><span class="sw" style="background:var(--good);height:8px;width:8px;border-radius:50%"></span> winning entry</span>
+     <span><span class="sw" style="background:var(--bad);height:8px;width:8px;border-radius:50%"></span> losing entry</span></div>
+     ${sv}<div class="tooltip"></div>`);
+
+  const svg = el.querySelector("svg"), tip = el.querySelector(".tooltip"),
+        xh = svg.querySelector("#xh"), ov = svg.querySelector("#ov");
+  const show = (html, evt) => {
+    tip.innerHTML = html; tip.style.opacity = 1;
+    const r = el.getBoundingClientRect();
+    let x = evt.clientX - r.left + 14, y = evt.clientY - r.top - 10;
+    if (x > r.width - 190) x -= 210;
+    tip.style.left = x+"px"; tip.style.top = y+"px";
+  };
+  ov.addEventListener("mousemove", evt => {
+    const r = svg.getBoundingClientRect();
+    const px = (evt.clientX - r.left) * W / r.width;
+    let i = Math.round((px - m.l)/(W-m.l-m.r)*(n-1));
+    i = Math.max(0, Math.min(n-1, i));
+    xh.setAttribute("x1", X(i)); xh.setAttribute("x2", X(i)); xh.setAttribute("opacity",".5");
+    show(`<strong>${s.dates[i]}</strong><br>Rule: <span class="num">${fmt(s.strategy[i]-100)}</span><br>Hold: <span class="num">${fmt(s.buyhold[i]-100)}</span>`, evt);
+  });
+  ov.addEventListener("mouseleave", ()=>{ tip.style.opacity=0; xh.setAttribute("opacity","0"); });
+  svg.querySelectorAll("circle[data-trade]").forEach(c => {
+    c.addEventListener("mousemove", evt => {
+      evt.stopPropagation();
+      const t = s.trades[+c.dataset.trade];
+      show(`<strong>Entry ${t.entry_date}</strong><br>Exit ${t.exit_date} (${t.exit_reason}, ${t.holding_days}d)<br>Return: <span class="num ${cls(t.return_pct)}">${fmt(t.return_pct,2)}</span>`, evt);
+    });
+    c.addEventListener("mouseleave", ()=>{ tip.style.opacity=0; });
+  });
+}
+
+chart(document.getElementById("chart-0217"), "0217.KL",
+  "Powerwell 0217.KL — 2020 to now (tuned pre-2024, honest after)", "2024-01-01");
+chart(document.getElementById("chart-5330"), "5330.KL",
+  "TMK Chemical 5330.KL — full listed history (pure validation, never tuned)", null);
+
+// scorecard
+const windowName = {powerwell_is:"Powerwell · in-sample 2020–23", powerwell_oos:"Powerwell · out-of-sample 2024–26", tmk_full:"TMK · full history 2024–26"};
+const scoreRows = DATA.promoted_metrics.filter(r => r.spec_id.includes("time15_stop5") && windowName[r.window]);
+document.getElementById("scorecard").innerHTML =
+  `<tr><th>Window</th><th class="num">Trades</th><th class="num">Avg/trade</th><th class="num">Win rate</th>
+   <th class="num">Profit factor</th><th class="num">Max DD</th><th class="num">Total return</th>
+   <th class="num">Buy&amp;hold</th><th class="num">Time in market</th><th class="num">Fees paid</th></tr>` +
+  scoreRows.map(r => `<tr><td>${windowName[r.window]||r.window}</td>
+    <td class="num">${r.n_trades}</td>
+    <td class="num ${cls(r.expectancy_pct_per_trade)}">${fmt(r.expectancy_pct_per_trade,2)}</td>
+    <td class="num">${r.win_rate.toFixed(0)}%</td>
+    <td class="num">${r.profit_factor.toFixed(2)}</td>
+    <td class="num">−${r.max_drawdown_pct.toFixed(1)}%</td>
+    <td class="num ${cls(r.total_return_pct)}">${fmt(r.total_return_pct,1)}</td>
+    <td class="num ${cls(r.buyhold_return_pct)}">${fmt(r.buyhold_return_pct,1)}</td>
+    <td class="num">${r.exposure_pct.toFixed(0)}%</td>
+    <td class="num">RM ${Math.round(r.total_fees_rm).toLocaleString()}</td></tr>`).join("");
+
+// top-15
+document.getElementById("top15").innerHTML =
+  `<tr><th>Rule</th><th class="num">Trades</th><th class="num">Avg/trade after fees</th>
+   <th class="num">Profit factor</th><th class="num">Win rate</th><th class="num">Max DD</th></tr>` +
+  DATA.is_top15.map(r => `<tr${r.expectancy_pct_per_trade>0?' class="hl"':''}>
+    <td class="mono" style="font-size:.76rem">${r.spec_id}</td>
+    <td class="num">${r.n_trades}</td>
+    <td class="num ${cls(r.expectancy_pct_per_trade)}">${fmt(r.expectancy_pct_per_trade,2)}</td>
+    <td class="num">${r.profit_factor.toFixed(2)}</td>
+    <td class="num">${r.win_rate.toFixed(0)}%</td>
+    <td class="num">−${r.max_drawdown_pct.toFixed(1)}%</td></tr>`).join("");
+
+// controls
+const ctrlName = {"0233.KL":"PEKAT (solar/ACE)","0215.KL":"Solarvest (solar/ACE)","0151.KL":"Kelington (engineering)","7231.KL":"Wellcall (rubber hose)","7133.KL":"United U-Li (steel)","7034.KL":"Thong Guan (packaging)"};
+document.getElementById("controls").innerHTML =
+  `<tr><th>Control stock</th><th class="num">Trades</th><th class="num">Avg/trade</th><th class="num">Rule return</th><th class="num">Buy&amp;hold</th></tr>` +
+  DATA.controls.filter(r=>r.spec_id.includes("time15_stop5")).map(r => `<tr>
+    <td>${ctrlName[r.ticker]||r.ticker} <span class="mono" style="color:var(--muted);font-size:.72rem">${r.ticker}</span></td>
+    <td class="num">${r.n_trades}</td>
+    <td class="num ${cls(r.expectancy_pct_per_trade)}">${fmt(r.expectancy_pct_per_trade,2)}</td>
+    <td class="num ${cls(r.total_return_pct)}">${fmt(r.total_return_pct,1)}</td>
+    <td class="num ${cls(r.buyhold_return_pct)}">${fmt(r.buyhold_return_pct,1)}</td></tr>`).join("");
+
+// trade tables
+for(const tk of ["0217.KL","5330.KL"]){
+  const el = document.getElementById("trades-"+tk.split(".")[0]);
+  el.innerHTML = `<tr><th>#</th><th>Entry</th><th>Exit</th><th class="num">Days</th><th>Exit via</th><th class="num">Return</th></tr>` +
+    DATA.series[tk].trades.map((t,i) => `<tr><td class="num">${i+1}</td>
+      <td class="mono">${t.entry_date}</td><td class="mono">${t.exit_date}</td>
+      <td class="num">${t.holding_days}</td><td>${t.exit_reason}</td>
+      <td class="num ${cls(t.return_pct)}">${fmt(t.return_pct,2)}</td></tr>`).join("");
+}
+</script>
